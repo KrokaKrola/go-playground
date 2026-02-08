@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 )
 
 func main() {
@@ -23,11 +24,27 @@ func main() {
 		}(id)
 	}
 
+	// waiting for everyone to finish (either by success or cancelation)
 	wg.Wait()
 	fmt.Println("Manager: All workers have shut down.")
-
 }
 
 func processChunk(ctx context.Context, workerID int, cancel context.CancelFunc) {
-	panic("unimplemented")
+	fmt.Printf("Worker %d: Starting...\n", workerID)
+
+	if workerID == 2 {
+		time.Sleep(time.Duration(workerID) * time.Second)
+		fmt.Printf("Worker %d: CRITICAL ERROR. Data corrupt. Stopping whole pipeline\n", workerID)
+		// trigger cancelation for all related goroutines
+		cancel()
+		return
+	}
+
+	select {
+	case <-time.After(time.Duration(workerID) * time.Second):
+		fmt.Printf("Worker %d: Finished successfully.\n", workerID)
+	case <-ctx.Done():
+		fmt.Printf("Worker %d: Cancel was called from one of the workers. Qutting early\n", workerID)
+		return
+	}
 }
